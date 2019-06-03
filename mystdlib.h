@@ -13,10 +13,8 @@
 #include <iostream>
 #include <fstream>
 
-#if defined(__APPLE__) || defined(__CYGWIN__)
-#if defined(__MACH__) || defined(__CYGWIN__)
+#if ! defined(__mode_t)
 typedef mode_t __mode_t;
-#endif
 #endif
 
 #define NELEMS(x)  (sizeof(x) / sizeof(x[0]))
