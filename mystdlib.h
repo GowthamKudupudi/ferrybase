@@ -14,7 +14,9 @@
 #include <fstream>
 
 #if ! defined(__mode_t)
+#  if defined(mode_t)
 typedef mode_t __mode_t;
+#  endif
 #endif
 
 #define NELEMS(x)  (sizeof(x) / sizeof(x[0]))
