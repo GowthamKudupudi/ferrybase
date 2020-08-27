@@ -6,6 +6,7 @@
 #ifndef MYSTDLIB_H
 #define MYSTDLIB_H
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <string>
 #include <signal.h>
 #include <list>
@@ -13,11 +14,7 @@
 #include <iostream>
 #include <fstream>
 
-#if ! defined(__mode_t)
-#  if defined(mode_t)
 typedef mode_t __mode_t;
-#  endif
-#endif
 
 #define NELEMS(x)  (sizeof(x) / sizeof(x[0]))
 
