@@ -24,7 +24,7 @@ void ThreadPool::enqueue (function<void(int)> job) {
 void ThreadPool::printThrdStats () {
 	char buf[512];
 	char* b = buf;
-	for (int i=0; i<workers_.size(); ++i) {
+	for (int i=0; i<isRunning_.size(); ++i) {
 		b += sprintf(b, "%d: %d, ", i, isRunning_[i]);
 	}
 	b-=2;
@@ -35,6 +35,10 @@ void ThreadPool::printThrdStats () {}
 #endif
 
 void ThreadPool::start (size_t n) {
+	// Pre-size before spawning: workers write isRunning_[tid] as soon as
+	// they start, which races with push_back growth (out-of-bounds access
+	// and reallocation while a worker is inside the vector).
+	isRunning_.resize(n, 0);
 	for (size_t i=0; i<n; ++i) {
 		workers_.emplace_back([this,i] () {
 			tid = i;
@@ -45,9 +49,12 @@ void ThreadPool::start (size_t n) {
 						cvJoin_.notify_all();
 					}
 					cv_.wait(lk, [this] {
+						printThrdStats();
 						return stopping_ || !jobs_.empty();
 					});
 					if (stopping_ && jobs_.empty()) {
+						printf("stopping %d\n", tid);
+						printThrdStats();
 						return;
 					}
 					job = move(jobs_.front());
@@ -67,7 +74,6 @@ void ThreadPool::start (size_t n) {
 				}
 			}
 		});
-		isRunning_.push_back(0);
 	}
 }
 
