@@ -45,9 +45,6 @@ void ThreadPool::start (size_t n) {
 			while (true) {
 				function<void(int)> job; {
 					unique_lock<mutex> lk(mutex_);
-					if (jobs_.empty() && !jc) {
-						cvJoin_.notify_all();
-					}
 					cv_.wait(lk, [this] {
 						printThrdStats();
 						return stopping_ || !jobs_.empty();
@@ -59,18 +56,26 @@ void ThreadPool::start (size_t n) {
 					}
 					job = move(jobs_.front());
 					jobs_.pop();
-				}
-				try {
+					// Count as running while still holding mutex_ so join()
+					// cannot observe an empty queue with jc==0 in the window
+					// between pop and the increment.
 					++jc;
-					isRunning_[tid]=1;
+				}
+				isRunning_[tid]=1;
+				try {
 					job(tid);
-					isRunning_[tid]=0;
-					printThrdStats();
-					--jc;
 				} catch (const exception &e) {
 					printf("worker exception: %s\n", e.what());
 				} catch (...) {
 					printf("worker exception: unknown");
+				}
+				isRunning_[tid]=0;
+				printThrdStats();
+				--jc;
+				{
+					unique_lock<mutex> lk(mutex_);
+					if (jobs_.empty() && jc.load()==0)
+						cvJoin_.notify_all();
 				}
 			}
 		});
@@ -90,6 +95,6 @@ void ThreadPool::stop () {
 void ThreadPool::join () {
 	unique_lock<mutex> lk(mutex_);
 	cvJoin_.wait(lk, [this] {
-		return jobs_.empty();
+		return jobs_.empty() && jc.load()==0;
 	});
 }
